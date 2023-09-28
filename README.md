@@ -3,32 +3,87 @@
 This will implement a nostr bot that can be customized into various apps by the use
 of event handlers.
 
-## Similar to Web Apps
+### Installation
+
+```bash
+npm install nostr-bot-app
+```
+
+### Web apps vs Nostr bots
+
+We can design Nostr bots to function similar to web apps. Instead of https requests and responses, Nostr bots receive and send information using Nostr events.
+
+The most obvious advantage of this paradigm is that a Nostr bot automatically knows and trusts the identity of the entity on the other side.
+
+This essentially eliminates the need for the very complicated user authentication processes that are required for web apps.
+
+### Code comparison
+
+The design of this library is inspired by that of web app libraries.
+
+The example below shows an express app that just returns "Hello" on the left, and a Nostr-bot that responds to a direct message with a "Hello" on the right.
 
 <div style="display: flex; flex-direction: row;">
+<div style="margin-right: 2px">
+
 ```typescript
-import express from 'express';
+import express from "express";
+
+//
+//
+//
+//
+//
 
 const app = express();
 
-app.get('/', (req, res) => {
-res.send('Hello there! You just made a get request.');
+//
+//
+//
+
+app.get("/", (req, res) => {
+  res.send("Hello there! You just made a get request.");
 });
+
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
 
 app.listen(3000, () => {
-console.log('Example app listening on port 3000!');
+  console.log("Example app listening on port 3000!");
 });
+```
 
-````
+</div>
 
+<div style="margin-left: 2px">
 
 ```typescript
-import {NostrBotApp, DirectMessageEvent, DirectMessageEventBuilder} from 'nostr-bot-app';
+import {
+  NostrBotApp,
+  DirectMessageEvent,
+  DirectMessageEventBuilder,
+} from "nostr-bot-app";
 
-const directMessageHandler = async (
-  dmObject: DirectMessageEvent,
-  botRef: NostrBotApp
-) => {
+// Create a new NostrBotApp instance.
+const nostrApp = new NostrBotApp({
+  privateKey: "your private key here",
+  relays: ["wss://your-relay-url-here"],
+});
+
+// Add the direct message handler to the bot.
+nostrApp.onDirectMessageEvent(
+  async (dmObject: DirectMessageEvent, botRef: NostrBotApp) => {
     // Use the Event builder to create a new direct message event. This handles
     // the encryption for you.
     const replyDM = await DirectMessageEventBuilder.createDirectMessageEvent(
@@ -42,19 +97,14 @@ const directMessageHandler = async (
 
     // Simply return the signed event data. The bot will automatically post it.
     return signedReplyDM.getSignedEventData();
-  };
-
-// Create a new NostrBotApp instance.
-const nostrApp = new NostrBotApp({
-    privateKey: "your private key here",
-    relays: ["wss://your-relay-url-here"],
-});
-
-// Add the direct message handler to the bot.
-nostrApp.onDirectMessageEvent(directMessageHandler);
+  }
+);
 
 // Allow the bot to connect to the relays.
-nostrApp.waitForConnections()
-````
+nostrApp.waitForConnections();
+
+//
+```
 
 </div>
+```

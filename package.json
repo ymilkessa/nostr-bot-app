@@ -20,10 +20,13 @@
     "test": "jest",
     "build": "tsc",
     "start": "node dist/index.js",
-    "dev": "nodemon --watch 'src/**/*.ts' --exec 'ts-node' src/index.ts"
+    "dev": "nodemon --watch 'src/**/*.ts' --exec 'ts-node' src/index.ts",
+    "ts-node": "ts-node"
   },
   "dependencies": {
+    "nodemon": "^3.0.1",
     "nostr-tools": "^1.16.0",
+    "ts-node": "^10.9.1",
     "uuid": "^9.0.1",
     "ws": "^8.14.2"
   },

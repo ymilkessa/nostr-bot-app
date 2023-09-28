@@ -1,7 +1,4 @@
-import {
-  NostrBotApp,
-  DirectMessageHandlerFunction,
-} from "../../src/bot/nostrBot";
+import { NostrBotApp } from "../../src/bot/nostrBot";
 import DirectMessageEventBuilder from "../../src/events/builders/directMessageEventBuilder";
 import { getPublicKey } from "nostr-tools";
 import DirectMessageEvent from "../../src/events/kinds/directMessageEvent";

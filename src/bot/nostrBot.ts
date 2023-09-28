@@ -74,7 +74,10 @@ export class NostrBotApp {
 
   constructor({ privateKey, relays }: NostrBotParams) {
     if (relays.length > 1) {
-      throw new Error("Only one relay is supported for now.");
+      console.log(
+        `It is highly recommended that you only use one relay. 
+        Otherwise, you might need to take care of duplicate events on your own.`
+      );
     }
     this.privateKey = privateKey;
     this.publicKey = getPublicKey(privateKey);
@@ -108,9 +111,20 @@ export class NostrBotApp {
 
         ws.on("close", () => {});
 
-        setInterval(() => {
-          ws.send("ping");
-        }, 30000);
+        /**
+         * Post a dummy event every 10 minutes to keep the connection alive.
+         */
+        setInterval(async () => {
+          const dummyEvent = new EventBuilder({
+            pubkey: this.publicKey,
+            content: "ping",
+            kind: EventKinds.TEXT_NOTE,
+          });
+          const signedDummyEvent = this.signEvent(dummyEvent);
+          await this.publishSignedEvent(signedDummyEvent.getSignedEventData(), [
+            relayUrl,
+          ]);
+        }, 600000);
       });
 
       ws.on("error", (err) => {
@@ -184,10 +198,13 @@ export class NostrBotApp {
     await Promise.all(promises);
   }
 
-  async publishSignedEvent(event: SignedEventData) {
+  async publishSignedEvent(
+    event: SignedEventData,
+    relays: string[] = this.relayUrls
+  ) {
     if (this.eventConfirmed(event)) {
       const message = prepareEventPayload(event);
-      await this.sendDataToRelays(message);
+      await this.sendDataToRelays(message, relays);
     }
   }
 
