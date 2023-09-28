@@ -73,15 +73,20 @@ export class NostrBotApp {
   private subscriptionRequests: Map<string, SubscriptionFilters> = new Map();
 
   constructor({ privateKey, relays }: NostrBotParams) {
+    this.privateKey = privateKey;
+    this.publicKey = getPublicKey(privateKey);
+    console.log(`Bot initiated with the public key ${this.publicKey}`);
+
+    if (typeof relays === "string") {
+      relays = [relays];
+    }
+    this.relayUrls = relays;
     if (relays.length > 1) {
       console.log(
         `It is highly recommended that you only use one relay. 
         Otherwise, you might need to take care of duplicate events on your own.`
       );
     }
-    this.privateKey = privateKey;
-    this.publicKey = getPublicKey(privateKey);
-    this.relayUrls = relays;
 
     // Setup the default event handle wrappers.
     this.allEventHandlers.set(

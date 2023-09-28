@@ -2,37 +2,38 @@ import {
   NostrBotApp,
   DirectMessageEvent,
   DirectMessageEventBuilder,
-  EventBuilder,
 } from "../index";
 
-// Create a new NostrBotApp instance.
-const nostrApp = new NostrBotApp({
-  privateKey:
-    "77392281e998a0fdc1959082192004c9be9a66dddce785d30e69853c512738a9",
+import dotevn from "dotenv";
+dotevn.config();
 
-  relays: [
-    "wss://relay.primal.net",
-    "wss://soloco.nl",
-    "wss://relay.snort.social",
-    "wss://relay.current.fyi",
-    "wss://relay.damus.io",
-    "wss://nostr.fmt.wiz.biz",
-    "wss://eden.nostr.land",
-    "wss://nostr-pub.wellorder.net",
-    "wss://offchain.pub",
-    "wss://nos.lol",
-  ],
+const nostrPrivKey = process.env.TEST_NOSTR_PRIVATE_KEY;
+const secondBotKey = process.env.BOT_1_KEY;
+const testRelayUrl = process.env.TEST_RELAY_URL;
+
+// Create a new NostrBotApp instance
+const nostrBotApp = new NostrBotApp({
+  privateKey: nostrPrivKey || "<your_private_key>",
+  relays: [testRelayUrl || "wss://<your_relay_url>"],
 });
 
-// Add the direct message handler to the bot.
-nostrApp.onDirectMessageEvent(
+// Make another bot to chat with the first bot.
+const otherBot = new NostrBotApp({
+  privateKey: secondBotKey || "<your_private_key>",
+  relays: [testRelayUrl || "wss://<your_relay_url>"],
+});
+
+// Add the direct message handler to the main bot.
+nostrBotApp.onDirectMessageEvent(
   async (dmObject: DirectMessageEvent, botRef: NostrBotApp) => {
-    // Use the Event builder to create a new direct message event. This handles
+    // Use the Direct Message Event Builder to create a new direct message event. This handles
     // the encryption for you.
     const replyDM = await DirectMessageEventBuilder.createDirectMessageEvent(
       botRef.getPrivateKey(),
       dmObject.pubkey,
-      "Hello there! You just sent me a message."
+      "Hello there! You just sent me a message." +
+        "Your decrypted message is: " +
+        dmObject.decryptedMessage
     );
 
     // Use the signEvent method to sign the event with the bot's private key.
@@ -43,17 +44,32 @@ nostrApp.onDirectMessageEvent(
   }
 );
 
-// First make a post to announce your presence.
-const newEvent = new EventBuilder({
-  pubkey: nostrApp.getPublicKey(),
-  content: "Hello world!",
-  kind: 1,
-});
+// Make your test bot simply print out the response it gets from nostrBotApp.
+otherBot.onDirectMessageEvent(
+  async (dmObject: DirectMessageEvent, _botRef: NostrBotApp) => {
+    console.log(
+      "Got this response from nostrBotApp: \n",
+      dmObject.decryptedMessage
+    );
+  }
+);
 
-// Sign the event.
-nostrApp.signEvent(newEvent);
+// Allow the bots to connect to the relays.
+Promise.all([
+  nostrBotApp.waitForConnections(),
+  otherBot.waitForConnections(),
+]).then(async () => {
+  // Subscribe the two bots to each other.
+  await nostrBotApp.subscribeToUser(otherBot.getPublicKey());
+  await otherBot.subscribeToUser(nostrBotApp.getPublicKey());
 
-// Allow the bot to connect to the relays.
-nostrApp.waitForConnections().then(() => {
-  nostrApp.publishSignedEvent(newEvent.getSignedEventData());
+  // Then have the other bot send a message to your nostr bot app.
+  const newDMEvent = await DirectMessageEventBuilder.createDirectMessageEvent(
+    otherBot.getPrivateKey(),
+    nostrBotApp.getPublicKey(),
+    "Hello from Bot 1!"
+  );
+
+  otherBot.signEvent(newDMEvent);
+  await otherBot.publishSignedEvent(newDMEvent.getSignedEventData());
 });

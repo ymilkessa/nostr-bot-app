@@ -2,6 +2,9 @@ import { NostrBotApp } from "../../src/bot/nostrBot";
 import DirectMessageEventBuilder from "../../src/events/builders/directMessageEventBuilder";
 import { getPublicKey } from "nostr-tools";
 import DirectMessageEvent from "../../src/events/kinds/directMessageEvent";
+import dotevn from "dotenv";
+
+dotevn.config();
 
 const stringToPrepend = "This is my reply to your text: \n";
 const directMessageHandler = async (
@@ -29,11 +32,9 @@ describe("NostrBotApp", () => {
   let testRelayUrl: string;
 
   beforeAll(async () => {
-    testRelayUrl = "wss://relay.primal.net";
-    privateKey1 =
-      "5ce5a140fd3f3742fcf9be3c905e5d19a9cc9b24cf0b606eeebdb973d5dc3d84";
-    privateKey2 =
-      "77392281e998a0fdc1959082192004c9be9a66dddce785d30e69853c512738a9";
+    testRelayUrl = process.env.TEST_RELAY_URL || "wss://<your_relay_url>";
+    privateKey1 = process.env.BOT_1_KEY || "<bot_1_key_here>";
+    privateKey2 = process.env.BOT_2_KEY || "<bot_2_key_here>";
     publicKey1 = getPublicKey(privateKey1);
     publicKey2 = getPublicKey(privateKey2);
 

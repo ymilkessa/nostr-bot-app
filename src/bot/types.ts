@@ -16,5 +16,5 @@ export interface NostrBotParams {
   /**
    * Relays urls to connect to.
    */
-  relays: string[];
+  relays: string[] | string;
 }
