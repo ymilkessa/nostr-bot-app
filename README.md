@@ -21,11 +21,11 @@ const newEvent = new EventBuilder({
 });
 
 // Sign the event.
-nostrApp.signEvent(newEvent);
+signedEvent = nostrApp.signEvent(newEvent);
 
 // Allow the bot to connect to its relays. Then publish the event.
 nostrApp.waitForConnections().then(() => {
-  nostrApp.publishSignedEvent(newEvent.getSignedEventData());
+  nostrApp.publishSignedEvent(signedEvent.getSignedEventData());
 });
 ```
 
@@ -145,7 +145,7 @@ nostrApp.waitForConnections();
 
 The `onEvent` method allows you to write a callback for any specific event kind. This is useful to write special handlers for any custom event kinds that you might have.
 
-Below is an implementation that uses `onEvent` to make a bot that comments under posts by a particular pubkey.
+Below is an implementation that uses `onEvent` to make a bot that comments under posts.
 
 ```typescript
 import { NostrBotApp, GenericEvent, EventBuilder } from "nostr-bot-app";
