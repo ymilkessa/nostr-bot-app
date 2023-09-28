@@ -23,8 +23,9 @@ The design of this library is inspired by that of web app libraries.
 
 The example below shows an express app that just returns "Hello" on the left, and a Nostr-bot that responds to a direct message with a "Hello" on the right.
 
-<div style="display: flex; flex-direction: row;">
-<div style="margin-right: 2px">
+<table>
+<tr>
+<td>
 
 ```typescript
 import express from "express";
@@ -64,9 +65,10 @@ app.listen(3000, () => {
 });
 ```
 
-</div>
 
-<div style="margin-left: 2px">
+</td>
+<td>
+
 
 ```typescript
 import {
@@ -106,5 +108,8 @@ nostrApp.waitForConnections();
 //
 ```
 
-</div>
+
+</td>
+</tr>
+</table>
 ```
