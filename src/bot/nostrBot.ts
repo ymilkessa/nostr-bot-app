@@ -55,6 +55,8 @@ export class NostrBotApp {
   private publicKey: string;
   private relayUrls: string[];
   private recentMessages: SignedEventData[] = [];
+  private creationTime: number;
+  private hanldeOldEvents: boolean;
   webSocketConnections: Map<string, WebSocket> = new Map();
 
   /**
@@ -72,9 +74,11 @@ export class NostrBotApp {
    */
   private subscriptionRequests: Map<string, SubscriptionFilters> = new Map();
 
-  constructor({ privateKey, relays }: NostrBotParams) {
+  constructor({ privateKey, relays, hanldeOldEvents }: NostrBotParams) {
     this.privateKey = privateKey;
     this.publicKey = getPublicKey(privateKey);
+    this.creationTime = Math.floor(Date.now() / 1000);
+    this.hanldeOldEvents = hanldeOldEvents || false;
     console.log(`Bot initiated with the public key ${this.publicKey}`);
 
     if (typeof relays === "string") {
@@ -270,6 +274,10 @@ export class NostrBotApp {
     switch (data[0]) {
       case RelayResponseTypes.EVENT:
         const eventData = extractEventFromPayload(data as EventFromRelay);
+        if (!this.hanldeOldEvents && eventData.created_at < this.creationTime) {
+          break;
+        }
+
         this.recentMessages.push(eventData);
         const genericEvent = await GenericEvent.deconstructEvent(eventData);
         const handler = this.allEventHandlers.get(eventData.kind);

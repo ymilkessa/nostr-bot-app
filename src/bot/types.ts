@@ -17,4 +17,9 @@ export interface NostrBotParams {
    * Relays urls to connect to.
    */
   relays: string[] | string;
+
+  /**
+   * Respond to events that were sent before the creation of the bot.
+   */
+  hanldeOldEvents?: boolean;
 }

@@ -1,6 +1,6 @@
 {
   "name": "nostr-bot-app",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "A package for making Nostr bots in a way that can be customized for any use case.",
   "keywords": [
     "nostr",
@@ -20,6 +20,7 @@
   },
   "scripts": {
     "test": "jest",
+    "prebuild": "rm -rf dist",
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "nodemon --watch 'src/**/*.ts' --exec 'ts-node' src/index.ts",
