@@ -45,7 +45,7 @@ At the time or writing this, relays seem to restrict the ways in which bots can 
 
 The event-callback design of this library is inspired by that of web app libraries. Here is a side by side comparison of a web app and a Nostr bot that function analogously.
 
-<table>
+<table style="font-size: 0.8rem">
 <tr>
 <th>
 Web app using express
@@ -64,12 +64,9 @@ import express from "express";
 //
 //
 //
-//
-//
 
 const app = express();
 
-//
 //
 //
 
@@ -77,11 +74,6 @@ app.get("/", (req, res) => {
   res.send("Hello there!");
 });
 
-//
-//
-//
-//
-//
 //
 //
 //
@@ -106,34 +98,24 @@ import {
   DirectMessageEventBuilder as DMB,
 } from "nostr-bot-app";
 
-// Create a new NostrBotApp instance.
 const nostrApp = new NostrBotApp({
   privateKey: "your private key here",
   relays: ["wss://your-relay-url-here"],
 });
 
-// Add the direct message handler to the bot.
 nostrApp.onDirectMessageEvent(async function (
   dmObject: DirectMessageEvent,
   botRef: NostrBotApp
 ) {
-  // Create a new direct message evente.
-  // (This class handles the encryption.)
   const replyDM = await DMB.createDirectMessageEvent(
     botRef.getPrivateKey(),
     dmObject.pubkey,
     "Hello there!"
   );
-
-  // Sign the event.
   const signedReplyDM = botRef.signEvent(replyDM);
-
-  // Simply return the signed event data.
-  // (The bot will post it.)
   return signedReplyDM.getSignedEventData();
 });
 
-// Allow the bot to connect to the relays.
 nostrApp.waitForConnections();
 
 //
