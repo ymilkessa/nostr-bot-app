@@ -14,6 +14,7 @@ import {
   SubscriptionRequest,
   EventPayload,
   RelayResponseTypes,
+  OkResponse,
 } from "../events/types";
 import {
   extractEventFromPayload,
@@ -29,6 +30,11 @@ export type EventHandlerFunction<T extends GenericEvent> = (
   eventObject: T,
   botRef: NostrBotApp,
   ..._otherArgs: any[]
+) => any;
+
+export type OkResponseHandlerFunction = (
+  okResponse: OkResponse,
+  relayUrl: string
 ) => any;
 
 /**
@@ -289,16 +295,7 @@ export class NostrBotApp {
         }
         break;
       case RelayResponseTypes.OK:
-        if (data[2]) {
-          console.log(
-            `${relayUrl} has accepted your event with id ${data[1]}.`
-          );
-        } else {
-          console.log(
-            `${relayUrl} has rejected your event with id ${data[1]} for the following reason:\n` +
-              data[3]
-          );
-        }
+        await this.okResponseHandler(data as OkResponse, relayUrl);
         break;
       case RelayResponseTypes.EOSE:
         const subscriptionId = data[1];
@@ -347,9 +344,29 @@ export class NostrBotApp {
     this.handleTextNoteFunction = handler;
   }
 
+  onOkResponse(handler: OkResponseHandlerFunction) {
+    this.okResponseHandler = handler;
+  }
+
   private handleDirectMessageFunction: DirectMessageHandlerFunction = () => {};
   private handleMetadataFunction: MetadataEventHandlerFunction = () => {};
   private handleTextNoteFunction: TextNoteEventHandlerFunction = () => {};
+  /**
+   * Default response to an ok message: just log the status to the console.
+   */
+  private okResponseHandler: OkResponseHandlerFunction = (
+    data: OkResponse,
+    relayUrl: string
+  ) => {
+    if (data[2]) {
+      console.log(`${relayUrl} has accepted your event with id ${data[1]}.`);
+    } else {
+      console.log(
+        `${relayUrl} has rejected your event with id ${data[1]} for the following reason:\n` +
+          data[3]
+      );
+    }
+  };
 
   private async defaultDirectMessageHandler(genericEvent: GenericEvent) {
     const directMessageEvent = await DirectMessageEvent.deconstructEvent(

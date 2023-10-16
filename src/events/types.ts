@@ -70,6 +70,10 @@ export enum RelayResponseTypes {
   NOTICE = "NOTICE",
 }
 
+export type OkResponse = [RelayResponseTypes.OK, string, boolean, string];
+export type Notice = [RelayResponseTypes.NOTICE, string];
+export type EOSE = [RelayResponseTypes.EOSE, string];
+
 export enum EventKinds {
   METADATA = 0,
   TEXT_NOTE = 1,

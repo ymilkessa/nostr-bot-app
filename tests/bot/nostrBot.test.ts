@@ -3,6 +3,7 @@ import DirectMessageEventBuilder from "../../src/events/builders/directMessageEv
 import { getPublicKey } from "nostr-tools";
 import DirectMessageEvent from "../../src/events/kinds/directMessageEvent";
 import dotevn from "dotenv";
+import EventBuilder from "../../src/events/builders/eventBuilder";
 
 dotevn.config();
 
@@ -23,8 +24,10 @@ const directMessageHandler = async (
 };
 
 describe("NostrBotApp", () => {
+  let bot0: NostrBotApp;
   let bot1: NostrBotApp;
   let bot2: NostrBotApp;
+  let privateKey0: string;
   let privateKey1: string;
   let privateKey2: string;
   let publicKey1: string;
@@ -33,12 +36,16 @@ describe("NostrBotApp", () => {
 
   beforeAll(async () => {
     testRelayUrl = process.env.TEST_RELAY_URL || "wss://<your_relay_url>";
+    privateKey0 = process.env.TEST_NOSTR_PRIVATE_KEY || "<bot_0_key_here>";
     privateKey1 = process.env.BOT_1_KEY || "<bot_1_key_here>";
     privateKey2 = process.env.BOT_2_KEY || "<bot_2_key_here>";
     publicKey1 = getPublicKey(privateKey1);
     publicKey2 = getPublicKey(privateKey2);
 
-    // Create two bots that both use the same relay url
+    bot0 = new NostrBotApp({
+      privateKey: privateKey0,
+      relays: [testRelayUrl],
+    });
     bot1 = new NostrBotApp({
       privateKey: privateKey1,
       relays: [testRelayUrl],
@@ -48,7 +55,11 @@ describe("NostrBotApp", () => {
       relays: [testRelayUrl],
     });
     bot2.onDirectMessageEvent(directMessageHandler);
-    await Promise.all([bot1.waitForConnections(), bot2.waitForConnections()]);
+    await Promise.all([
+      bot0.waitForConnections(),
+      bot1.waitForConnections(),
+      bot2.waitForConnections(),
+    ]);
 
     // (In case the relay requires that the bots subscribe to each other to receive DMs.)
     await Promise.all([
@@ -58,7 +69,7 @@ describe("NostrBotApp", () => {
   });
 
   afterAll(async () => {
-    await Promise.all([bot1.close(), bot2.close()]);
+    await Promise.all([bot0.close(), bot1.close(), bot2.close()]);
   });
 
   it("should send a message from one bot to another and receive a reply", async () => {
@@ -84,5 +95,29 @@ describe("NostrBotApp", () => {
     );
     expect(dmEvent.decryptedMessage).toBe(stringToPrepend + message);
     expect(dmEvent.tags.find((tag) => tag[0] === "e")).toBeTruthy();
+  }, 10000);
+
+  /**
+   * should recieve a successful 'ok' response after posting an event.
+   */
+  it("should recieve a successful 'ok' response after posting an event", async () => {
+    const okResponseMarker = {
+      okMessageCount: 0,
+    };
+    bot0.onOkResponse((response, relayUrl) => {
+      if (response[0] === "OK" && response[2]) {
+        okResponseMarker.okMessageCount++;
+      }
+    });
+    const newEvent = new EventBuilder({
+      pubkey: bot0.getPublicKey(),
+      kind: 1,
+      content: "Hello world",
+      tags: [],
+    });
+    const signedEvent = bot0.signEvent(newEvent);
+    await bot0.publishSignedEvent(signedEvent.getSignedEventData());
+    await new Promise((resolve) => setTimeout(resolve, 6000));
+    expect(okResponseMarker.okMessageCount).toBe(1);
   }, 10000);
 });
