@@ -2,6 +2,17 @@
 
 A Nostr bot implementation that can also be customized into various app-like use cases.
 
+### Table of contents
+
+- [Usage](#usage)
+- [Usage as Nostr-based Apps](#usage-as-nostr-based-apps)
+- [Callback setters](#callback-setters)
+  - [1. `onEvent`](#1-onevent)
+    - [`onDirectMessageEvent`](#ondirectmessageevent)
+    - [`onMetadataEvent`](#onmetadataevent)
+    - [`onTextNoteEvent`](#ontextnoteevent)
+  - [2. `onOkResponse`](#2-onokresponse)
+
 ## Usage
 
 Here is a simple example of a Nostr bot that posts "Hello world" to a relay.
@@ -125,7 +136,11 @@ nostrApp.waitForConnections();
 </tr>
 </table>
 
-## `onEvent`
+# Callback setters
+
+You can write a custom callback for any message type received from a relay. These message types are described in [NIP-01](https://github.com/nostr-protocol/nips/blob/master/01.md#from-relay-to-client-sending-events-and-notices).
+
+## 1. `onEvent`
 
 The `onEvent` method allows you to write a callback for any specific event kind. This is useful to write special handlers for any custom event kinds that you might have.
 
@@ -169,3 +184,23 @@ commenterBot.waitForConnections().then(async () => {
   await commenterBot.subscribeToUser("<pub key to subscribe to>");
 });
 ```
+
+This package also provides 3 special callback setters that include a special wrappers for each event kind.
+
+### `onDirectMessageEvent`
+
+As the name suggests, this is a specialized callback setter for direct messages (event kind 4). With this setter, your callback can access the decrypted version of the message inside the event parameter. Just use the `.decryptedMessage` property on the first argument as shown in the [example](./src/examples/respondToDM.ts).
+
+In short, it just does the decryption step for you.
+
+### `onMetadataEvent`
+
+This is for event kind 0: author metadata event. This callback setter simply parses the metadata for you, and makes it available in an `.authorMetaData` property.
+
+### `onTextNoteEvent`
+
+Using this callback is identical with using `onEvent` with the event kind of 1.
+
+## 2. `onOkResponse`
+
+The okResponse is a message sent by relays (not other users) to confirm that your event has been received and processed. This callback setter allows you to write a custom callback for this message. See the [example](./src/examples/handleOkResponse.ts) for usage details.

@@ -10,6 +10,7 @@ dotevn.config();
 const stringToPrepend = "This is my reply to your text: \n";
 const directMessageHandler = async (
   dmObject: DirectMessageEvent,
+  _subscriptionId: string,
   botRef: NostrBotApp
 ) => {
   const replyDM = await DirectMessageEventBuilder.createDirectMessageEvent(
@@ -101,14 +102,6 @@ describe("NostrBotApp", () => {
    * should recieve a successful 'ok' response after posting an event.
    */
   it("should recieve a successful 'ok' response after posting an event", async () => {
-    const okResponseMarker = {
-      okMessageCount: 0,
-    };
-    bot0.onOkResponse((response, relayUrl) => {
-      if (response[0] === "OK" && response[2]) {
-        okResponseMarker.okMessageCount++;
-      }
-    });
     const newEvent = new EventBuilder({
       pubkey: bot0.getPublicKey(),
       kind: 1,
@@ -116,8 +109,22 @@ describe("NostrBotApp", () => {
       tags: [],
     });
     const signedEvent = bot0.signEvent(newEvent);
+    const eventId = signedEvent.getEventId();
+
+    const okResponseMarker = {
+      okMessageCount: 0,
+      eventId: "",
+    };
+    bot0.onOkResponse((_relayUrl, eventId, okStatus) => {
+      if (okStatus) {
+        okResponseMarker.okMessageCount++;
+        okResponseMarker.eventId = eventId;
+      }
+    });
     await bot0.publishSignedEvent(signedEvent.getSignedEventData());
     await new Promise((resolve) => setTimeout(resolve, 6000));
+
     expect(okResponseMarker.okMessageCount).toBe(1);
+    expect(okResponseMarker.eventId).toBe(eventId);
   }, 10000);
 });

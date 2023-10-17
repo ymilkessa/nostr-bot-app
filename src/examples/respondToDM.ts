@@ -25,7 +25,7 @@ const otherBot = new NostrBotApp({
 
 // Add the direct message handler to the main bot.
 nostrBotApp.onDirectMessageEvent(
-  async (dmObject: DirectMessageEvent, botRef: NostrBotApp) => {
+  async (dmObject: DirectMessageEvent, _subId: string, botRef: NostrBotApp) => {
     // Use the Direct Message Event Builder to create a new direct message event. This handles
     // the encryption for you.
     const replyDM = await DirectMessageEventBuilder.createDirectMessageEvent(
@@ -46,7 +46,11 @@ nostrBotApp.onDirectMessageEvent(
 
 // Make your test bot simply print out the response it gets from nostrBotApp.
 otherBot.onDirectMessageEvent(
-  async (dmObject: DirectMessageEvent, _botRef: NostrBotApp) => {
+  async (
+    dmObject: DirectMessageEvent,
+    _subId: string,
+    _botRef: NostrBotApp
+  ) => {
     console.log(
       "Got this response from nostrBotApp: \n",
       dmObject.decryptedMessage

@@ -28,13 +28,16 @@ import { SubscriptionRecordValue } from "./localTypes";
 
 export type EventHandlerFunction<T extends GenericEvent> = (
   eventObject: T,
+  subscriptionId: string,
   botRef: NostrBotApp,
   ..._otherArgs: any[]
 ) => any;
 
 export type OkResponseHandlerFunction = (
-  okResponse: OkResponse,
-  relayUrl: string
+  relayUrl: string,
+  eventId: string,
+  okStatus: boolean,
+  message?: string
 ) => any;
 
 /**
@@ -279,23 +282,24 @@ export class NostrBotApp {
     const data = JSON.parse(eventString);
     switch (data[0]) {
       case RelayResponseTypes.EVENT:
-        const eventData = extractEventFromPayload(data as EventFromRelay);
+        const eventMessage = data as EventFromRelay;
+        const eventData = extractEventFromPayload(eventMessage);
         if (!this.hanldeOldEvents && eventData.created_at < this.creationTime) {
           break;
         }
 
-        this.recentMessages.push(eventData);
         const genericEvent = await GenericEvent.deconstructEvent(eventData);
         const handler = this.allEventHandlers.get(eventData.kind);
         if (handler) {
-          const response = await handler(genericEvent, this);
+          const response = await handler(genericEvent, eventMessage[1], this);
           if (response) {
             this.sendDataToRelays(response, [relayUrl]);
           }
         }
+        this.recentMessages.push(eventData);
         break;
       case RelayResponseTypes.OK:
-        await this.okResponseHandler(data as OkResponse, relayUrl);
+        await this.okResponseHandler(relayUrl, data[1], data[2], data[3] ?? "");
         break;
       case RelayResponseTypes.EOSE:
         const subscriptionId = data[1];
@@ -355,46 +359,59 @@ export class NostrBotApp {
    * Default response to an ok message: just log the status to the console.
    */
   private okResponseHandler: OkResponseHandlerFunction = (
-    data: OkResponse,
-    relayUrl: string
+    relayUrl,
+    eventId: string,
+    okStatus: boolean,
+    message?: string
   ) => {
-    if (data[2]) {
-      console.log(`${relayUrl} has accepted your event with id ${data[1]}.`);
+    if (okStatus) {
+      console.log(`${relayUrl} has accepted your event with id ${eventId}.`);
     } else {
       console.log(
-        `${relayUrl} has rejected your event with id ${data[1]} for the following reason:\n` +
-          data[3]
+        `${relayUrl} has rejected your event with id ${eventId}.\n` +
+          `Reason: ${message || "None provided."}`
       );
     }
   };
 
-  private async defaultDirectMessageHandler(genericEvent: GenericEvent) {
+  private async defaultDirectMessageHandler(
+    genericEvent: GenericEvent,
+    subId: string
+  ) {
     const directMessageEvent = await DirectMessageEvent.deconstructEvent(
       genericEvent.getEventData(),
       this.privateKey
     );
     const responseEvent: SignedEventData =
-      await this.handleDirectMessageFunction(directMessageEvent, this);
+      await this.handleDirectMessageFunction(directMessageEvent, subId, this);
     return responseEvent && prepareEventPayload(responseEvent);
   }
 
-  private async defaultMetadataHandler(genericEvent: GenericEvent) {
+  private async defaultMetadataHandler(
+    genericEvent: GenericEvent,
+    subId: string
+  ) {
     const metadataEvent = await MetadataEvent.deconstructEvent(
       genericEvent.getEventData()
     );
     const responseEvent = await this.handleMetadataFunction(
       metadataEvent,
+      subId,
       this
     );
     return responseEvent && prepareEventPayload(responseEvent);
   }
 
-  private async defaultTextNoteHandler(genericEvent: GenericEvent) {
+  private async defaultTextNoteHandler(
+    genericEvent: GenericEvent,
+    subId: string
+  ) {
     const textNoteEvent = await TextNoteEvent.deconstructEvent(
       genericEvent.getEventData()
     );
     const responseEvent = await this.handleTextNoteFunction(
       textNoteEvent,
+      subId,
       this
     );
     return responseEvent && prepareEventPayload(responseEvent);

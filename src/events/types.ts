@@ -115,7 +115,7 @@ export type AnyClientMessage =
   | CloseSubscriptionRequest;
 
 /**
- * ["EVENT", <subscription id>, <signed event data>]
+ * ["EVENT", subscription id, signed event data]
  */
 export type EventFromRelay = [
   ClientMessageTypes.EVENT,

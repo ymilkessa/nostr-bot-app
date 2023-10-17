@@ -20,7 +20,7 @@ const commenterBot = new NostrBotApp({
 // Make the commenterBot respond to events of kind 1 by posting a comment.
 commenterBot.onEvent(
   1,
-  async (event: GenericEvent, commenterBotRef: NostrBotApp) => {
+  async (event: GenericEvent, _subId: string, commenterBotRef: NostrBotApp) => {
     const eventData = event.getEventData();
 
     // Create a new event that will be a comment to this event.
