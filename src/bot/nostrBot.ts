@@ -5,7 +5,6 @@ import { WebSocket } from "ws";
 import { NostrBotParams } from "./types";
 import EventBuilder from "../events/builders/eventBuilder";
 import {
-  AnyClientMessage,
   EventFromRelay,
   EventKinds,
   ClientMessageTypes,
@@ -66,7 +65,8 @@ export class NostrBotApp {
   private recentMessages: SignedEventData[] = [];
   private creationTime: number;
   private hanldeOldEvents: boolean;
-  webSocketConnections: Map<string, WebSocket> = new Map();
+  private connectWithRelays: boolean;
+  protected webSocketConnections: Map<string, WebSocket> = new Map();
 
   /**
    * Maps a given event kind to a function that has been assigned to handle it.
@@ -83,12 +83,24 @@ export class NostrBotApp {
    */
   private subscriptionRequests: Map<string, SubscriptionFilters> = new Map();
 
-  constructor({ privateKey, relays, hanldeOldEvents }: NostrBotParams) {
+  constructor({
+    privateKey,
+    relays,
+    hanldeOldEvents,
+    connectWithRelays,
+  }: NostrBotParams) {
+    this.connectWithRelays = connectWithRelays ?? true;
+    if (this.connectWithRelays && (!relays || relays.length === 0)) {
+      throw new Error(
+        "You must provide at least one relay url if you want the bot to be connected. Otherwise, set connectWithRelays to false."
+      );
+    }
+
     this.privateKey = privateKey;
     this.publicKey = getPublicKey(privateKey);
     this.creationTime = Math.floor(Date.now() / 1000);
     this.hanldeOldEvents = hanldeOldEvents || false;
-    console.log(`Bot initiated with the public key ${this.publicKey}`);
+    console.log(`Bot created with the public key ${this.publicKey}`);
 
     if (typeof relays === "string") {
       relays = [relays];
@@ -116,7 +128,16 @@ export class NostrBotApp {
       this.defaultTextNoteHandler.bind(this)
     );
 
-    for (const relayUrl of relays) {
+    if (this.connectWithRelays) {
+      this.init();
+    }
+  }
+
+  /**
+   * Initiate connections with the relays and setup the core callbacks.
+   */
+  private async init() {
+    for (const relayUrl of this.relayUrls) {
       const ws = new WebSocket(relayUrl);
       ws.on("open", () => {
         console.log("Connection started with " + relayUrl);
@@ -130,18 +151,10 @@ export class NostrBotApp {
         ws.on("close", () => {});
 
         /**
-         * Post a dummy event every 10 minutes to keep the connection alive.
+         * Post a dummy message every 10 minutes to keep the connection alive.
          */
         setInterval(async () => {
-          const dummyEvent = new EventBuilder({
-            pubkey: this.publicKey,
-            content: "ping",
-            kind: EventKinds.TEXT_NOTE,
-          });
-          const signedDummyEvent = this.signEvent(dummyEvent);
-          await this.publishSignedEvent(signedDummyEvent.getSignedEventData(), [
-            relayUrl,
-          ]);
+          await this.sendDataToRelays("ping");
         }, 600000);
       });
 
@@ -158,6 +171,11 @@ export class NostrBotApp {
    * Wait until all connections are established (either open or failed).
    */
   async waitForConnections() {
+    if (!this.connectWithRelays) {
+      throw new Error(
+        "You must enable connections with relays to use this function."
+      );
+    }
     const promises = Array.from(this.webSocketConnections.values()).map(
       (ws) =>
         new Promise((resolve) => {
@@ -200,16 +218,21 @@ export class NostrBotApp {
   }
 
   private async sendDataToRelays(
-    message: AnyClientMessage,
+    message: string,
     relays: string[] = this.relayUrls
   ) {
+    if (!this.connectWithRelays) {
+      throw new Error(
+        "You must enable connections with relays to use this function."
+      );
+    }
     const promises = relays.map(async (relayUrl) => {
       const ws = this.webSocketConnections.get(relayUrl);
       if (!ws) {
         throw new Error("No connection exists for " + relayUrl);
       }
       if (ws?.readyState === WebSocket.OPEN) {
-        await ws?.send(JSON.stringify(message, null, 2));
+        await ws?.send(message);
         return;
       }
     });
@@ -220,14 +243,14 @@ export class NostrBotApp {
     event: SignedEventData,
     relays: string[] = this.relayUrls
   ) {
-    if (this.eventConfirmed(event)) {
+    if (event.pubkey === this.publicKey && verifySignature(event)) {
       const message = prepareEventPayload(event);
-      await this.sendDataToRelays(message, relays);
+      await this.sendDataToRelays(JSON.stringify(message, null, 2), relays);
     }
   }
 
   signEvent(event: EventBuilder): EventBuilder {
-    if (this.eventIsSelfAuthored(event.getEventPayload())) {
+    if (event.getAuthorPublicKey() === this.publicKey) {
       event.singEvent(this.privateKey);
       // The signature should already be set in the mutable event instance.
       // Just return the event to keep elegance.
@@ -235,25 +258,6 @@ export class NostrBotApp {
     }
 
     throw new Error("Event is not authored by this bot.");
-  }
-
-  /**
-   * Returns true if the event has been signed by this bot.
-   */
-  eventConfirmed(event: SignedEventData) {
-    if (!this.eventIsSelfAuthored(event)) {
-      return false;
-    }
-
-    // Cloning the event because verifySignature would mutates the original.
-    return verifySignature({ ...event });
-  }
-
-  /**
-   * Returns true if the public key of the given event matches the public key of this bot.
-   */
-  eventIsSelfAuthored(event: EventPayload) {
-    return event.pubkey === this.publicKey;
   }
 
   async makeSubscriptionRequest(filters: SubscriptionFilters) {
@@ -268,7 +272,7 @@ export class NostrBotApp {
       id,
       filters,
     ] as SubscriptionRequest;
-    await this.sendDataToRelays(message);
+    await this.sendDataToRelays(JSON.stringify(message, null, 2));
   }
 
   async subscribeToUser(id: string) {
@@ -278,7 +282,7 @@ export class NostrBotApp {
   /**
    * Invoke the handler that has been assigned for this event kind, if it exists.
    */
-  async handleRecievedEvent(eventString: any, relayUrl: string) {
+  protected async handleRecievedEvent(eventString: any, relayUrl: string) {
     const data = JSON.parse(eventString);
     switch (data[0]) {
       case RelayResponseTypes.EVENT:
@@ -293,7 +297,9 @@ export class NostrBotApp {
         if (handler) {
           const response = await handler(genericEvent, eventMessage[1], this);
           if (response) {
-            this.sendDataToRelays(response, [relayUrl]);
+            this.sendDataToRelays(JSON.stringify(response, null, 2), [
+              relayUrl,
+            ]);
           }
         }
         this.recentMessages.push(eventData);
@@ -335,20 +341,45 @@ export class NostrBotApp {
    * certain event kinds (e.g. decrypting direct messages).
    */
   onEvent(eventKind: EventKinds, handler: EventHandlerFunction<GenericEvent>) {
+    if (!this.connectWithRelays) {
+      throw new Error(
+        "You must enable connections with relays to use this function."
+      );
+    }
     this.allEventHandlers.set(eventKind, handler);
   }
 
   onDirectMessageEvent(handler: DirectMessageHandlerFunction) {
+    if (!this.connectWithRelays) {
+      throw new Error(
+        "You must enable connections with relays to use this function."
+      );
+    }
     this.handleDirectMessageFunction = handler;
   }
   onMetadataEvent(handler: MetadataEventHandlerFunction) {
+    if (!this.connectWithRelays) {
+      throw new Error(
+        "You must enable connections with relays to use this function."
+      );
+    }
     this.handleMetadataFunction = handler;
   }
   onTextNoteEvent(handler: TextNoteEventHandlerFunction) {
+    if (!this.connectWithRelays) {
+      throw new Error(
+        "You must enable connections with relays to use this function."
+      );
+    }
     this.handleTextNoteFunction = handler;
   }
 
   onOkResponse(handler: OkResponseHandlerFunction) {
+    if (!this.connectWithRelays) {
+      throw new Error(
+        "You must enable connections with relays to use this function."
+      );
+    }
     this.okResponseHandler = handler;
   }
 

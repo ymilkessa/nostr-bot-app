@@ -22,4 +22,10 @@ export interface NostrBotParams {
    * Respond to events that were sent before the creation of the bot.
    */
   hanldeOldEvents?: boolean;
+
+  /**
+   * If true, the bot will start initiating websocket connections with its relays
+   * as soon as it is created.
+   */
+  connectWithRelays?: boolean;
 }

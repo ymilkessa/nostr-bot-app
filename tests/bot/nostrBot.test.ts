@@ -28,6 +28,7 @@ describe("NostrBotApp", () => {
   let bot0: NostrBotApp;
   let bot1: NostrBotApp;
   let bot2: NostrBotApp;
+  let unconnectedBot: NostrBotApp;
   let privateKey0: string;
   let privateKey1: string;
   let privateKey2: string;
@@ -55,7 +56,12 @@ describe("NostrBotApp", () => {
       privateKey: privateKey2,
       relays: [testRelayUrl],
     });
-    bot2.onDirectMessageEvent(directMessageHandler);
+    // unconnectedBot is just bot 0 without connections.
+    unconnectedBot = new NostrBotApp({
+      privateKey: privateKey0,
+      relays: [testRelayUrl],
+      connectWithRelays: false,
+    });
     await Promise.all([
       bot0.waitForConnections(),
       bot1.waitForConnections(),
@@ -74,6 +80,7 @@ describe("NostrBotApp", () => {
   });
 
   it("should send a message from one bot to another and receive a reply", async () => {
+    bot2.onDirectMessageEvent(directMessageHandler);
     // Send a message from bot1 to bot2
     const message = "Hello, bot2! Today is " + new Date().toDateString();
     const newEvent = await DirectMessageEventBuilder.createDirectMessageEvent(
@@ -98,9 +105,6 @@ describe("NostrBotApp", () => {
     expect(dmEvent.tags.find((tag) => tag[0] === "e")).toBeTruthy();
   }, 10000);
 
-  /**
-   * should recieve a successful 'ok' response after posting an event.
-   */
   it("should recieve a successful 'ok' response after posting an event", async () => {
     const newEvent = new EventBuilder({
       pubkey: bot0.getPublicKey(),
@@ -113,18 +117,30 @@ describe("NostrBotApp", () => {
 
     const okResponseMarker = {
       okMessageCount: 0,
-      eventId: "",
     };
-    bot0.onOkResponse((_relayUrl, eventId, okStatus) => {
-      if (okStatus) {
+    bot0.onOkResponse((_relayUrl, newEvId, okStatus) => {
+      if (okStatus && newEvId === eventId) {
         okResponseMarker.okMessageCount++;
-        okResponseMarker.eventId = eventId;
       }
     });
     await bot0.publishSignedEvent(signedEvent.getSignedEventData());
     await new Promise((resolve) => setTimeout(resolve, 6000));
 
     expect(okResponseMarker.okMessageCount).toBe(1);
-    expect(okResponseMarker.eventId).toBe(eventId);
   }, 10000);
+
+  it("unconnected bot can sign, but not post, an event.", async () => {
+    const newEvent = new EventBuilder({
+      pubkey: unconnectedBot.getPublicKey(),
+      kind: 1,
+      content: "Hello from the unconnected bot!",
+      tags: [],
+    });
+    const signedEvent = unconnectedBot.signEvent(newEvent);
+    expect(signedEvent).toBeTruthy();
+    expect(signedEvent.getSignedEventData()).toBeTruthy();
+    await expect(
+      unconnectedBot.publishSignedEvent(signedEvent.getSignedEventData())
+    ).rejects.toThrow();
+  }, 5000);
 });
