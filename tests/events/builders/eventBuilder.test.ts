@@ -24,10 +24,10 @@ describe("EventBuilder", () => {
     const newEvent = new EventBuilder(eventParams);
 
     // Signing this using the other private key should throw an error.
-    expect(() => newEvent.singEvent(otherPrivateKey)).toThrow(Error);
+    expect(() => newEvent.signEvent(otherPrivateKey)).toThrow(Error);
 
     // Signing this using the correct private key should not throw an error.
-    expect(() => newEvent.singEvent(privateKey)).not.toThrow(Error);
+    expect(() => newEvent.signEvent(privateKey)).not.toThrow(Error);
   });
 
   it("An event that has been serialized cannot be modified.", () => {
@@ -44,7 +44,7 @@ describe("EventBuilder", () => {
     const eventToSign = new EventBuilder(eventParams1);
     const eventToSerialize = new EventBuilder(eventParams2);
 
-    eventToSign.singEvent(privateKey);
+    eventToSign.signEvent(privateKey);
     eventToSerialize.serialize();
 
     expect(() => eventToSerialize.addTag(["test"])).toThrow(Error);
@@ -60,7 +60,7 @@ describe("EventBuilder", () => {
       content: "This is to test the isEventFixed method post signing.",
     };
     const event = new EventBuilder(eventParams);
-    event.singEvent(privateKey);
+    event.signEvent(privateKey);
     expect(event.isEventFixed()).toBe(true);
     expect(event.isEventSigned()).toBe(true);
     expect(event.getEventId()).not.toBeNull();
@@ -136,7 +136,7 @@ describe("EventBuilder", () => {
       content: "This is to test the completeness of a signed event data.",
     };
     const event = new EventBuilder(eventParams);
-    event.singEvent(privateKey);
+    event.signEvent(privateKey);
 
     const signedEventData = event.getSignedEventData();
     expect(signedEventData.id).not.toBeNull();

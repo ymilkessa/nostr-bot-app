@@ -96,7 +96,7 @@ export default class EventBuilder {
    *
    * No need to run serialize() prior to this.
    */
-  singEvent(privKey: string): void {
+  signEvent(privKey: string): void {
     if (this.sig) {
       return;
     }

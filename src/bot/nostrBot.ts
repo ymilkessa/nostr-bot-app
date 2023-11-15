@@ -251,7 +251,7 @@ export class NostrBotApp {
 
   signEvent(event: EventBuilder): EventBuilder {
     if (event.getAuthorPublicKey() === this.publicKey) {
-      event.singEvent(this.privateKey);
+      event.signEvent(this.privateKey);
       // The signature should already be set in the mutable event instance.
       // Just return the event to keep elegance.
       return event;
